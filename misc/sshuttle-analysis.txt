@@ -1,0 +1,192 @@
+[client] -- This is launched by user
+cmdline.main
+  client.main
+    fw := FirewallClient(...)
+      (__init__)
+      (Popen) Spawns a child process, [firewall]
+
+      ## To deal with "sudo quirk", stdin stays intact at first
+      ## firewall.main will attach its stdin to self.pfile soon
+      self.pfile is bidi-attached to stdout of [firewall]
+
+
+      ## [firewall] SYNC POINT A
+      ## See firewall.main
+      Receive a method name from [firewall]
+
+      self.method = get_method(method_name)
+      self.method.set_firewall(self)
+
+
+    fw.setup(...)
+
+    # fw.start() will be called indirectly by the server
+
+    client._main(
+      ...
+      tcp_listener
+      ...
+    )
+      debug1 " c: Starting client with Python version 3.x.x"
+
+      debug1 " c: Connecting to server..."
+
+      (serverproc, serversock) := ssh.connect(...)
+        content = (sshuttle.assembler module)
+        content2 = (various modules to be run on server)
+
+        (Popen) Spawns a child process, [ssh]
+
+        ## serversock is connected to the ssh process,
+        ## which again communicates with the remote shell process
+        serversock.sendall(content)
+        serversock.sendall(content2)
+          # To [server] SYNC POINT X
+
+      mux := (Mux created with serversock r/w)
+      handlers.append(mux)
+
+      # From [server] SYNC POINT Y
+      Receive 'SSHUTTLE0001' from [server]
+
+      rv = serverproc.poll() # check server liveness
+
+      debug1 " c: Connected to server."
+
+      mux.got_routes = onroutes
+      mux.got_host_list = onhostlist
+
+      # tcp_listener is of type MultiListener
+      tcp_listener.add_handler( ... )
+
+      LOOP
+        check_ssh_alive()
+        ssnet.runonce(handlers, mux)
+          
+
+
+
+
+[firewall] -- It's a elevated process that manages firewall rules
+cmdline.main
+  firewall.main
+    debug1 "fw: Starting firewall with Python version 3.x.x"
+
+    debug1 "fw: ready method name {method.name}"
+
+    Send 'READY {method.name}'
+    Flush
+      # To [client] SYNC POINT A
+      
+    # This command is initiated by [server]
+    Receive 'ROUTES' from [client] ( See fw.start )
+    Read entries and append them to SUBNETS
+
+    Receive 'NSLIST' from [client] ( See fw.start )
+    Read entries and append them to NSLIST
+
+    Recieve from [client],
+      'PORTS {REDIRPORT_V6, REDIRPORT_V4, DNSPORT_V6, DNSPORT_V4}'
+
+    Receive from [client],
+      'GO {udp, user}'
+
+    debug1 "fw: setting up."
+
+    method.setup_firewall(
+      port_v4, dnsport_v4, nslist_v4, socket.AF_INET, subnets_v4, ...
+    )
+      (in case of Darwin, pf.Method.setup_firewall)
+
+
+# sshuttle{6}-NNNNN is "pf anchor"
+fw: >> pfctl -s Interfaces -i lo -v
+
+fw: >> pfctl -s all
+fw: >> pfctl -a sshuttle6-12300 -f /dev/stdin
+fw: >> pfctl -E
+fw: >> pfctl -s Interfaces -i lo -v
+fw: >> pfctl -s all
+fw: >> pfctl -a sshuttle-12300 -f /dev/stdin
+fw: >> pfctl -E
+
+
+    
+    Send 'STARTED'
+    FLUSH
+
+    Loop:
+      Receive a message from [client] and do one of these:
+      - Match 'HOST' and ...
+      - method.firewall_command(message)
+      - break on EOF
+        
+
+
+
+
+[ssh]
+  |
+  |
+[remote shell process], `$ /bin/sh -c python3 -c {PYSCRIPT}`
+[server]
+
+# From [client] SYNC POINT X
+server.main
+  debug1 " s: Starting server with Python version 3.x.x"
+
+  Send '\0\0SSHUTTLE0001' to [client]
+  Flush
+    # To [client] SYNC POINT Y
+
+  # stdin and stdout is ultimately connected to the client
+  mux = Mux(sys.stdin, sys.stdout)
+  handlers = [ mux ]
+
+  # The message is sent to client
+  mux.send(0, CMD_ROUTES, b('routepkt'))
+    [client] SIDE
+    mux.got_routes  # onroutes function
+      mux.got_routes = None
+      serverready()
+        fw.start()
+
+
+  mux.got_host_req = got_host_req
+  mux.new_channel = new_channel
+  mux.got_dns_req = dns_req
+  mux.got_udq_open = udp_open
+
+  # loop until EOF is detected or CMD_EXIT is sent
+  while mux.ok:
+    check if hostwatch exited
+
+    ssnet.runonce(handlers, mux)
+    latency control
+
+    # more for DNS and UDP packets
+
+
+
+
+# --- sshuttle.ssnet ---
+function runonce(handlers, mux)
+
+  Remove HANDLERS which are not ok, from handlers
+
+  Collect sockets to monitor from handlers
+  Call SELECT on those sockets
+  
+  process I/O operating callbacks on ready sockets
+
+
+
+# --- sshuttle.ssnet.Mux ---
+SEND: enqueue a <channel, cmd, data> to OUTBUF
+GOT_PACKET: process a <channel, cmd, data>
+FLUSH: write the head of OUTBUF to WFILE
+FILL: read from RFILE and fill up INBUF
+HANDLE: process pending messages from RFILE
+CALLBACK: for a ready socket, call corresponding method
+  rfile -> HANDLE
+  wfile -> FLUSH

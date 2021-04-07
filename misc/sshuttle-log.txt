@@ -1,0 +1,47 @@
+$ shuttle -v -e 'ssh -F vagrant-ssh' -r vagrant@172.28.128.5 10.0.2.15
+
+Starting sshuttle proxy (version 1.0.5).
+[local sudo] Password: 
+fw: Starting firewall with Python version 3.9.2
+fw: ready method name pf.
+c : IPv6 enabled: Using default IPv6 listen address ::1
+c : Method: pf
+c : IPv4: on
+c : IPv6: on
+c : UDP : off (not available with pf method)
+c : DNS : off (available)
+c : User: off (not available with pf method)
+c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
+c :   (<AddressFamily.AF_INET: 2>, '10.0.2.15', 32, 0, 0)
+c : Subnets to exclude from forwarding:
+c :   (<AddressFamily.AF_INET: 2>, '127.0.0.1', 32, 0, 0)
+c :   (<AddressFamily.AF_INET6: 30>, '::1', 128, 0, 0)
+c : TCP redirector listening on ('::1', 12300, 0, 0).
+c : TCP redirector listening on ('127.0.0.1', 12300).
+c : Starting client with Python version 3.9.2
+c : Connecting to server...
+ s: Starting server with Python version 3.8.5
+ s: latency control setting = True
+ s: auto-nets:False
+c : Connected to server.
+fw: setting up.
+fw: >> pfctl -s Interfaces -i lo -v
+fw: >> pfctl -s all
+fw: >> pfctl -a sshuttle6-12300 -f /dev/stdin
+fw: >> pfctl -E
+fw: >> pfctl -s Interfaces -i lo -v
+fw: >> pfctl -s all
+fw: >> pfctl -a sshuttle-12300 -f /dev/stdin
+fw: >> pfctl -E
+c : Accept TCP: 172.30.1.56:61067 -> 10.0.2.15:80.
+
+--- <SIGINT> ---
+fw: undoing changes.
+fw: >> pfctl -a sshuttle6-12300 -F all
+fw: >> pfctl -X 1086015971954927141
+fw: >> pfctl -a sshuttle-12300 -F all
+fw: >> pfctl -X 1086015971954927237
+c : 
+c : Keyboard interrupt: exiting.
+c : SW'unknown':Mux#1: deleting (1 remain)
+c : SW#-1:172.30.1.56:61067: deleting (0 remain)
