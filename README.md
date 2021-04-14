@@ -24,7 +24,8 @@ TCP Piercer는 라우터 설정에 접근할 필요 없이 내부 네트워크�
 자세한 동작 원리는 [이 곳](./docs/network-flow.md)에 나와있습니다.
 - 라우터의 NAT translation behavior는 [endpoint-independent][rfc4787, section 4.1]라고 가정합니다.
 - Agent Server는 라우터와 인터넷 사이의 _모든 패킷 흐름을 통제할 수_ 있다고 가정합니다.
-- Agent Server가 수행하는 NAT, ISN 조작은 [tun device][Wikipedia, TUN/TAP]를 통해 이루어집니다.
+- Agent Client/Server가 수행하는 TCP segment 수정은 iptables를 통해 이루어집니다.
+- Agent Client/Server가 수행하는 packet encapsulation은 [tun interface][Wikipedia, TUN/TAP]를 통해 이루어집니다.
 
 
 ## 한계
@@ -35,9 +36,6 @@ TCP Piercer는 라우터 설정에 접근할 필요 없이 내부 네트워크�
 ### 시뮬레이션
 TCP Piercer는 실제 네트워크 장비에서 동작하는 것이 이상적이나 본 프로젝트가 개념 증명에 초점을 맞췄기 때문에
 빠르고 효율적인 실증을 위해 여러 개의 도커 컨테이너로 시뮬레이션할 수 있는 도구도 포함할 것입니다.
-
-vpn 같은 터널링 프로토콜의 2-way connection을 없애기위해 router의 NAT에 fake mapping을
-만들어 vpn 같은 기능을 제공하는 기법을 소개한다.
 
 
 [rfc4787, section 4.1]: https://tools.ietf.org/html/rfc4787#section-4.1
