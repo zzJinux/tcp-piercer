@@ -47,10 +47,10 @@ TCP segment의 destination은 똑같은 public endpoint(`33.33.33.33:6789`)로 �
   - Host A에서 iptables로 자체적인 NAT을 하면 bind 제한을 피할 수 있습니다.
     ```sh
     # [Agent Client] ---> [Agent Server]
-    iptables -t nat -p tcp --sport 8080 -d 10.0.0.1 --dport 3456 -j SNAT --to-source :80
+    iptables -t nat -A POSTROUTING -p tcp --sport 8080 -d 10.0.0.1 --dport 3456 -j SNAT --to-source :80
 
     # [Agent Client] <--- [Agent Server]
-    iptables -t nat -p tcp --dport 8080 -s 10.0.0.1 --sport 3456 -j DNAT --to-destination :80
+    iptables -t nat -A PREROUTING -p tcp --dport 80 -s 10.0.0.1 --sport 3456 -j DNAT --to-destination :8080
     ```
 
 
