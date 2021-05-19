@@ -1,0 +1,11 @@
+# TODO
+version: "3"
+services:
+  tp_server:
+    build:
+      context: $PWD
+      dockerfile: ../images/Dockerfile
+    volumes:
+      - $PWD:/go/src/tcp-piercer
+    networks:
+      - router_outer

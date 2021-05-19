@@ -1,5 +1,5 @@
 # TCP Piercer
-Router의 NAT에 인위적으로 NAT session을 생성을 유도하여 TCP 연결 수립을 정상적으로 완료시키고,
+라우터의 NAT에 인위적으로 NAT session을 생성을 유도하여 TCP 연결 수립을 정상적으로 완료시키고,
 동시에 해당 연결의 성능 하락을 최소화할 수 있는 기법을 제시합니다.
 
 > TCP Piercer는 TCP 동작을 이용하여 구현할 수 있는 새로운 기능한 개념 증명의 성격이 강하며

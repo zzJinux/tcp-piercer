@@ -1,0 +1,9 @@
+# TODO
+version: "3"
+services:
+  echoer:
+    build:
+      context: ../images/echoer
+    init: true
+    networks:
+      - router_outer
