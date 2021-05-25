@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/go-iptables/iptables"
+	"github.com/zzJinux/tcp-piercer/share"
 	"go.uber.org/multierr"
 )
 
@@ -33,10 +34,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 		panic(fmt.Sprint("Not implemented for this network: ", network))
 	}
 
-	localPort, err := getAvailablePort()
-	if err != nil {
-		return nil, fmt.Errorf("no port available: %w", err)
-	}
+	localPort := share.AvailablePort()
 	serverAddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("resolve error: %w", err)
@@ -107,17 +105,4 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 	}
 
 	return &cleanableConn{conn, undoIPTActions}, nil
-}
-
-func getAvailablePort() (port int, err error) {
-	// let the OS determine the available port
-	l, err := net.Listen("tcp", "")
-	if err != nil {
-		// extremely rare case
-		panic(fmt.Errorf("port exhaustion?: %w", err))
-	}
-	defer func() {
-		err = l.Close()
-	}()
-	return l.Addr().(*net.TCPAddr).Port, nil
 }
