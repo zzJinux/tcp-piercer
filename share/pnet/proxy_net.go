@@ -65,7 +65,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 		"-p", "tcp",
 		"--dport", strconv.Itoa(d.ServicePort),
 		"-s", serverAddr.IP.String(), "--sport", strconv.Itoa(serverAddr.Port),
-		"-j", "SNAT", "--to-source", fmt.Sprint(":", localPort),
+		"-j", "DNAT", "--to-destination", fmt.Sprint(":", localPort),
 	}
 
 	// Append iptable rules
