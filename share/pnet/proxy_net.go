@@ -61,27 +61,14 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 		"-j", "SNAT", "--to-source", fmt.Sprint(":", d.ServicePort),
 	}
 
-	incomingRuleSpec := iptRuleSpec{
-		"-p", "tcp",
-		"--dport", strconv.Itoa(d.ServicePort),
-		"-s", serverAddr.IP.String(), "--sport", strconv.Itoa(serverAddr.Port),
-		"-j", "DNAT", "--to-destination", fmt.Sprint(":", localPort),
-	}
-
 	// Append iptable rules
 	if err = ipt.Append("nat", "POSTROUTING", outgoingRuleSpec...); err != nil {
-		return nil, err
-	}
-	if err = ipt.Append("nat", "POSTROUTING", incomingRuleSpec...); err != nil {
 		return nil, err
 	}
 
 	undoIPTActions := func() (err error) {
 		// Delete iptable rules
 		if err = ipt.Delete("nat", "POSTROUTING", outgoingRuleSpec...); err != nil {
-			return
-		}
-		if err = ipt.Delete("nat", "POSTROUTING", incomingRuleSpec...); err != nil {
 			return
 		}
 		return nil

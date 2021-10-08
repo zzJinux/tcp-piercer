@@ -44,13 +44,10 @@ TCP segment의 destination은 똑같은 public endpoint(`33.33.33.33:6789`)로 �
 - 일반적으로 `0.0.0.0:80`가 `LISTENING` 상태이면 다른 프로세스(Agent Client)는 포트 `80`를 소켓에 bind할 수 없습니다. 
 그러나 Router R 입장에서 `192.168.0.100:80`으로 보이기만 하면 되기 때문에
   - Agent Client는 다른 포트를 bind하고 (예를 들어 8080)
-  - Host A에서 iptables로 자체적인 NAT을 하면 bind 제한을 피할 수 있습니다.
+  - Host A에서 iptables SNAT을 하면 이 제약을 우회할 수 있습니다.
     ```sh
     # [Agent Client] ---> [Agent Server]
     iptables -t nat -A POSTROUTING -p tcp --sport 8080 -d 10.0.0.1 --dport 3456 -j SNAT --to-source :80
-
-    # [Agent Client] <--- [Agent Server]
-    iptables -t nat -A PREROUTING -p tcp --dport 80 -s 10.0.0.1 --sport 3456 -j DNAT --to-destination :8080
     ```
 
 
