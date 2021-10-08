@@ -5,7 +5,12 @@ export GOMODCACHE
 
 TEST_MAIN := test/utils/test_main.sh
 
-.PHONY: test
+.PHONY: test unittest composetest
 
-test:
+test: unittest composetest
+
+composetest:
 	$(TEST_MAIN) $(TEST_OPTS) proxy_net_test
+
+unittest:
+	go test ./share/message
