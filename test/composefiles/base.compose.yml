@@ -7,6 +7,12 @@ networks:
   router_outer:
     driver: bridge
 volumes:
+  workspace:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: $PWD
   scripts-vol:
     driver: local
     driver_opts:
@@ -22,7 +28,7 @@ services:
     cap_add: 
       - NET_ADMIN
     volumes:
-      - $PWD:/go/src/tcp-piercer
+      - workspace:/go/src/tcp-piercer
       - scripts-vol:/scripts
     working_dir: /go/src/tcp-piercer
     networks:

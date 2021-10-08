@@ -6,6 +6,6 @@ services:
       context: $PWD
       dockerfile: ../images/Dockerfile
     volumes:
-      - $PWD:/go/src/tcp-piercer
+      - workspace:/go/src/tcp-piercer
     networks:
       - router_outer
