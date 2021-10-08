@@ -32,7 +32,7 @@ function setup() {
   outer_router_ip=$(cont__get_ipaddr $router_contid $outersubnet_name)
 
   echoer_ip=$(cont__get_ipaddr $(compose_fn ps -q $SERVER_NAME) ${COMPOSE_P}_router_outer)
-  test_server=${echoer_ip%/*}:$SERVER_PORT
+  echo_server=${echoer_ip%/*}:$SERVER_PORT
 
   # (on router) Configure the router to NAT packets from tp_client
   compose_fn exec -e SRC_SUBNET=$innersubnet -e DEST_SUBNET=$outersubnet -e TO_SOURCE=${outer_router_ip%/*} \
@@ -44,8 +44,8 @@ function setup() {
 
 
 function run() {
-  compose_fn exec -e TEST_SERVER=$test_server tp_client /bin/sh -c \
-    "/scripts/wait-for-command.sh -t 2 -c 'nc -z $test_server' && go test $MODULE_PATH/share/pnet"
+  compose_fn exec -e ECHO_SERVER=$echo_server tp_client /bin/sh -c \
+    "/scripts/wait-for-command.sh -t 2 -c 'nc -z $echo_server' && go test $MODULE_PATH/share/pnet"
 }
 
 

@@ -3,7 +3,8 @@ package pnet
 import (
 	"bufio"
 	"bytes"
-	"context"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -14,9 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// See "test/proxy_net_test.sh" to find out how the "TestServer" is set up
+var echoServerAddr *net.TCPAddr
+
 func TestMain(m *testing.M) {
 	var err error
-	testServerAddress, err = net.ResolveTCPAddr("tcp", os.Getenv("TEST_SERVER"))
+	echoServerAddr, err = net.ResolveTCPAddr("tcp", os.Getenv("ECHO_SERVER"))
 	if err != nil {
 		log.Fatalf("failed to resolve the address: %v", err)
 	}
@@ -24,37 +28,79 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-var testServerAddress *net.TCPAddr
-
-func getTestServerAddress() *net.TCPAddr {
-	return testServerAddress
-}
-
-// See "test/proxy_net_test.sh" for how the environment is set up
 func TestDialEchoServer(t *testing.T) {
 	assert := assert.New(t)
 
+	var err error
+	var done = make(chan struct{}) // close on test done
+	defer func() { close(done) }()
+
 	//
-	// The actual value of ServicePort doesn't matter
 	// Use random ports for ServicePort to avoid connection timeout due to the router's conntrack
 	// 120s is typical timeout duration.
 	//
-	dialer := Dialer{ServicePort: 9000 + int(time.Now().Unix()%120), Dialer: net.Dialer{Timeout: time.Duration(5 * time.Second)}}
-	address := getTestServerAddress()
+	servicePort := 9000 + int(time.Now().Unix()%120)
+	var ready = make(chan struct{})
+	go simpleServe(done, ready, servicePort)
+	<-ready
 
-	ctx := context.TODO()
-	conn, err := dialer.DialContext(ctx, address.Network(), address.String())
-	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
-	}
+	normalDialer := net.Dialer{Timeout: time.Duration(5 * time.Second)}
+	normalDialer.LocalAddr, err = net.ResolveTCPAddr("tcp", fmt.Sprint(":", servicePort))
+	_, err = normalDialer.Dial(echoServerAddr.Network(), echoServerAddr.String())
+	assert.NotNil(err, "Dial call should fail.")
+
+	proxyDialer := Dialer{ServicePort: servicePort, Dialer: net.Dialer{Timeout: time.Duration(5 * time.Second)}}
+	proxyConn, err := proxyDialer.Dial(echoServerAddr.Network(), echoServerAddr.String())
+	assert.Nilf(err, "proxy dial failed: %v", err)
+
 	defer func() {
-		// close the connection
-		err = conn.Close()
-		if err != nil {
-			t.Fatalf("Close failed: %v", err)
-		}
+		err = proxyConn.Close()
+		assert.Nilf(err, "proxy conn close failed: %v", err)
 	}()
 
+	echoTest(t, proxyConn)
+}
+
+//
+// Prepare a listening socket bound to SERVICE_PORT
+//
+func simpleServe(done <-chan struct{}, ready chan<- struct{}, port int) error {
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+
+	var testDone bool
+	go func() {
+		<-done
+		testDone = true
+		l.Close()
+	}()
+
+	close(ready)
+
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			if testDone {
+				return nil
+			} else {
+				return err
+			}
+		}
+
+		go func(c net.Conn) {
+			io.Copy(c, c)
+			c.Close()
+		}(conn)
+	}
+}
+
+func echoTest(t *testing.T, conn net.Conn) {
+	assert := assert.New(t)
+
+	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
 	bufConn := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 
 	// receive the initial message from the server
@@ -64,9 +110,10 @@ func TestDialEchoServer(t *testing.T) {
 	}
 	initialMessage = initialMessage[:len(initialMessage)-1]
 	tokens := bytes.Split(initialMessage, []byte(" "))
+
 	assert.Equal(4, len(tokens), "the number of tokens of initial message")
-	assert.Equal(address.IP.String(), string(tokens[2]))
-	assert.Equal(strconv.Itoa(address.Port), string(tokens[3]))
+	assert.Equal(remoteAddr.IP.String(), string(tokens[2]))
+	assert.Equal(strconv.Itoa(remoteAddr.Port), string(tokens[3]))
 
 	// send a random message to the server
 	_, err = bufConn.Write([]byte("hello\n"))
@@ -84,5 +131,4 @@ func TestDialEchoServer(t *testing.T) {
 		t.Fatalf("Read failed: %v", err)
 	}
 	assert.Equal("ECHO: hello\n", string(reply))
-
 }
