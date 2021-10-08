@@ -1,4 +1,9 @@
-misc/
+.git/
+.devcontainer/
+.vscode/
 docs/
+misc/
 test/
+.gitignore
+LICENSE
 README.md
