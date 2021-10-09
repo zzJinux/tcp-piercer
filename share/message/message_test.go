@@ -1,37 +1,58 @@
 package message
 
 import (
-	"bytes"
+	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/zzJinux/tcp-piercer/share"
 )
 
-func TestSend(t *testing.T) {
-	sampleData := []byte("Hello")
-	var buffer bytes.Buffer
-	buffer.Grow(HEADER_SIZE + len(sampleData) + 1)
+func TestConnSendReceive(t *testing.T) {
 
-	msgchan := NewMessageChan(&buffer)
-	msgchan.Send(Kind(0x33), sampleData)
+	port := share.AvailablePort()
 
-	expected := []byte("\x33Hello\n")
-	assert.Equal(t, expected, buffer.Bytes())
-}
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		t.Fatalf("prepare: listen failed: %v", err)
+	}
 
-func TestReceive(t *testing.T) {
-	sampleMessage := []byte("\x33Hello\n")
-	var buffer bytes.Buffer
-	buffer.Write(sampleMessage)
+	// sampleData := []byte("Hello")
+	// expected := []byte("\x33Hello\n")
 
-	msgchan := NewMessageChan(&buffer)
-	kind, data, _ := msgchan.Receive()
+	conn1, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		t.Fatalf("prepare: listen failed: %v", err)
+	}
+	defer conn1.Close()
+
+	conn2, err := l.Accept()
+	if err != nil {
+		t.Fatalf("prepare: accept failed: %v", err)
+	}
+	defer conn2.Close()
+
+	done1, done2 := make(chan struct{}), make(chan struct{})
+
+	go func() {
+		msgchan := NewMessageChan(conn1)
+		msgchan.Send(Kind(0x33), []byte("Hello"))
+		close(done1)
+	}()
+
+	var kind Kind
+	var data []byte
+	go func() {
+		msgchan := NewMessageChan(conn2)
+		kind, data, _ = msgchan.Receive()
+
+		close(done2)
+	}()
+
+	<-done1
+	<-done2
 
 	assert.Equal(t, Kind(0x33), kind)
-	assert.Equal(t, sampleMessage[1:len(sampleMessage)-1], data)
+	assert.Equal(t, []byte("Hello"), data)
 }
-
-func TestConnSend(t *testing.T) {
-}
-
-func TestConnReceive(t *testing.T) {}
