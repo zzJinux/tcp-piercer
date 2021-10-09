@@ -28,6 +28,15 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+//
+// Description
+//
+// 1. Run a simple TCP server that binds SERVICE_PORT for listening
+// 2. Dial the ECHO_SERVER with the normal dialer whose local port is SERVICE_PORT
+//   -> This is expected to fail.
+// 3. Dial the ECHO_SERVER with the proxy_net dialer whose local port is SERVICE_PORT
+//   -> This is expected to succeed.
+//
 func TestDialEchoServer(t *testing.T) {
 	assert := assert.New(t)
 

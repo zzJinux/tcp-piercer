@@ -34,7 +34,7 @@ function setup() {
   echoer_ip=$(cont__get_ipaddr $(compose_fn ps -q $SERVER_NAME) ${COMPOSE_P}_router_outer)
   echo_server=${echoer_ip%/*}:$SERVER_PORT
 
-  # (on router) Configure the router to NAT packets from tp_client
+  # (on router) Configure the router to SNAT packets from tp_client
   compose_fn exec -e SRC_SUBNET=$innersubnet -e DEST_SUBNET=$outersubnet -e TO_SOURCE=${outer_router_ip%/*} \
     router /scripts/setup_nat.sh 
 
