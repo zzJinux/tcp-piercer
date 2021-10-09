@@ -33,7 +33,7 @@ Host A에 있는 프로세스가 `0.0.0.0:80`에 `LISTENING` 하고 있습니다
 - Agent Client/Server 간에 TCP 연결을 수립 시키는 과정에서 Router R의 NAT은 private endpoint를 public endpoint로 mapping하는 NAT session을 만듭니다.
   - 위의 예시의 경우 private endpoint는 `192.168.0.100:80` 이고 public endpoint는 `33.33.33.33:6789`입니다.
   - 이 TCP 연결을 제어 채널(Control Channel)이라 지칭하기로 합니다.
-- **Router R의 NAT이 endpoint-independent**이기 때문에 이후 `192/168.0.0/24` 서브넷에서 나가는
+- **Router R의 NAT이 endpoint-independent**이기 때문에 이후 `192.168.0.0/24` 서브넷에서 나가는
 TCP segment의 destination이 `10.0.0.1:3456`가 _아니어도_ source가 같으면 (즉, `192.168.0.100:80`이면), NAT이 주소변환을 할 때,
 TCP segment의 destination은 똑같은 public endpoint(`33.33.33.33:6789`)로 변환됩니다.
   - **endpoint-independent**는 Host B를 비롯한 다른 인터넷 호스트들이 `33.33.33.33:6789`를 통해 Host A로 접근할 수 있게 하는 특성입니다.
@@ -54,7 +54,7 @@ TCP segment의 destination은 똑같은 public endpoint(`33.33.33.33:6789`)로 �
 ## Handshake 중개
 <img src="./_images/handshake1.png" alt="encapsulated handshake">
 
-- 제어 채널이 초기화가 끝난 이후 TCP Piercer는 외부에서 Host A의 public endpoint로 오는 TCP request의 handshake를 중개합니다.
+- 제어 채널이 초기화가 끝난 이후 TCP Piercer는 Host B(외부, `55.55.55.55:4567`)에서 Host A의 public endpoint로 오는 TCP request의 handshake를 중개합니다.
 - SYN segment를 수신 하면 NAT(iptables)을 수행하고 IP packet을 TCP payload에 담아(encapsulation) 제어 채널로 보냅니다.
 - Agent Client는 수신한 IP packet을 Linux Network Stack에 보냅니다.
 - Linux Network Stack은 SYN segment를 수신하고 SYN+ACK segment를 송신합니다.
