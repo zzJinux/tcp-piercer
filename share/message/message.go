@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
-	"time"
 )
 
 type Kind int
@@ -37,14 +35,7 @@ func NewMessageChan(rw io.ReadWriter) MessageChan {
 		brw: bufio.NewReadWriter(bufio.NewReader(rw), bufio.NewWriter(rw)),
 	}
 
-	if conn, ok := rw.(net.Conn); ok {
-		return &ConnMessageChan{
-			imessageChan: bch,
-			conn:         conn,
-		}
-	} else {
-		return bch
-	}
+	return bch
 }
 
 type MessageChan interface {
@@ -82,33 +73,4 @@ func (m *BaseMessageChan) Send(kind Kind, data []byte) error {
 		return err
 	}
 	return nil
-}
-
-type ConnMessageChan struct {
-	imessageChan MessageChan
-	conn         net.Conn
-	readTimeout  time.Duration
-	writeTimeout time.Duration
-}
-
-func (m *ConnMessageChan) Receive() (Kind, []byte, error) {
-	if err := m.conn.SetReadDeadline(time.Now().Add(m.readTimeout)); err != nil {
-		return MSG_NIL, nil, err
-	}
-	return m.imessageChan.Receive()
-}
-
-func (m *ConnMessageChan) Send(kind Kind, data []byte) error {
-	if err := m.conn.SetWriteDeadline(time.Now().Add(m.writeTimeout)); err != nil {
-		return err
-	}
-	return m.imessageChan.Send(kind, data)
-}
-
-func (m *ConnMessageChan) SetReadTimeout(d time.Duration) {
-	m.readTimeout = d
-}
-
-func (m *ConnMessageChan) SetWriteTimeout(d time.Duration) {
-	m.writeTimeout = d
 }
