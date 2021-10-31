@@ -1,40 +1,110 @@
 package client
 
 import (
-	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
+
+	"github.com/zzJinux/tcp-piercer/share/control"
+	"github.com/zzJinux/tcp-piercer/share/message"
+	"github.com/zzJinux/tcp-piercer/share/pnet"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
-	conn        net.Conn
 	serverAddr  string
-	servicePort string
+	servicePort int
+
+	session *control.Session
 }
 
-func NewClient(serverAddr, servicePort string) (*Client, error) {
-	return &Client{nil, serverAddr, servicePort}, nil
+func NewClient(serverAddr string, servicePort int) (*Client, error) {
+	if servicePort == 0 {
+		return nil, fmt.Errorf("NewClient: 0 cannot be the service port")
+	}
+	return &Client{
+		serverAddr:  serverAddr,
+		servicePort: servicePort,
+	}, nil
 }
 
-func (c *Client) Start() (err error) {
-	var conn net.Conn
-	conn, err = net.Dial("tcp", c.serverAddr)
+// non-blocking
+func (c *Client) StartContext(ctx context.Context) error {
+	var err error
+
+	log.Printf("connecting to %s", c.serverAddr)
+
+	// 1. connection
+	session, err := c.InitChannel(ctx)
 	if err != nil {
-		return
+		return err
+	}
+	c.session = session
+
+	log.Printf("connected")
+	// 2. handle incomding payloads (encapsulated TCP requests)
+	// TODO
+
+	return nil
+}
+
+func (c *Client) InitChannel(ctx context.Context) (*control.Session, error) {
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("connection: cancelled")
+	default:
+		// normal
 	}
 
-	msg := "My private endpoint is " + conn.LocalAddr().String()
-	fmt.Fprintln(conn, msg)
-	replyBytes, err := bufio.NewReader(conn).ReadBytes('\n')
+	dialer := pnet.Dialer{ServicePort: c.servicePort, Dialer: net.Dialer{}}
+	conn, err := dialer.DialContext(ctx, "tcp", c.serverAddr)
 	if err != nil {
-		return
+		return nil, err
+	}
+	defer conn.Close()
+
+	msgChan := message.NewMessageChan(conn)
+
+	var publicEndpoint, privateEndpoint *net.TCPAddr = nil, conn.LocalAddr().(*net.TCPAddr)
+
+	// The CLIENT informs the SERVER of the address before SNAT
+	eg := new(errgroup.Group)
+
+	eg.Go(func() error {
+		return msgChan.Send(message.MSG_NATINFO, []byte(privateEndpoint.String()))
+	})
+
+	// The SERVER informs the CLIENT of the address after SNAT
+	eg.Go(func() error {
+		kind, data, err := msgChan.Receive()
+		if err != nil {
+			return err
+		}
+
+		if kind != message.MSG_NATINFO {
+			return fmt.Errorf("unexpected message kind: %s", kind.String())
+		}
+
+		dataStr := string(data)
+		publicEndpoint, err = net.ResolveTCPAddr("tcp", dataStr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("initConnection: %w", err)
 	}
 
-	log.Println("Message")
-	log.Println("\t" + msg)
-	log.Println("Reply")
-	log.Println("\t" + string(replyBytes))
-
-	return
+	return &control.Session{
+		Conn:            conn,
+		MsgChan:         &msgChan,
+		PublicEndpoint:  publicEndpoint,
+		PrivateEndpoint: privateEndpoint,
+	}, nil
 }

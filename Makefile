@@ -10,7 +10,7 @@ TEST_MAIN := test/utils/test_main.sh
 test: unittest composetest
 
 composetest:
-	$(TEST_MAIN) $(TEST_OPTS) proxy_net_test
+	$(TEST_MAIN) $(TEST_OPTS) $(NAME)
 
 unittest:
 	go test ./share/message

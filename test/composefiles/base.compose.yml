@@ -19,6 +19,7 @@ volumes:
       o: bind
       type: none
       device: $PWD/test/images/scripts
+  shared-vol:
 services:
   tp_client:
     build:
@@ -30,6 +31,7 @@ services:
     volumes:
       - workspace:/go/src/tcp-piercer
       - scripts-vol:/scripts
+      - shared-vol:/shared
     working_dir: /go/src/tcp-piercer
     networks:
       - router_inner

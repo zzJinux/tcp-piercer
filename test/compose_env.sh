@@ -49,10 +49,37 @@ EOF
   fi
 }
 
+server() {
+  COMPOSE_FILE="${base_composefile}:${server_composefile}"
+  if [ "${GOMODCACHE:-}" ]; then
+    read -r -d '' compose_file_stdin <<EOF || true
+version: "3"
+volumes:
+  gomodcache:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: $GOMODCACHE
+services:
+  tp_client:
+    volumes:
+      - gomodcache:/go/pkg/mod
+  tp_server:
+    volumes:
+      - gomodcache:/go/pkg/mod
+EOF
+    COMPOSE_FILE="${COMPOSE_FILE}:-"
+  fi
+}
+
 common
 case $1 in
 echoer)
   echoer
+  ;;
+server)
+  server
   ;;
 esac
 
